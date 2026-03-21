@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.python-version
+
+# Config — contains Apps Script web app URL (secret)
+config.json
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+[project]
+name = "slides-tool"
+version = "0.1.0"
+description = "CLI tool to edit Google Slides as a notebook via Apps Script"
+requires-python = ">=3.10"
+dependencies = []
