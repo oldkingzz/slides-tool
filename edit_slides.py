@@ -7,6 +7,7 @@ Usage:
     uv run edit_slides.py set <index> "Title" "Body text"
     uv run edit_slides.py clear <index>
     uv run edit_slides.py delete <index>
+    uv run edit_slides.py toc <index>
 """
 
 import sys
@@ -36,6 +37,14 @@ def main():
         s.delete_slide(int(sys.argv[2]))
     elif cmd == "clear":
         s.clear_slide(int(sys.argv[2]))
+    elif cmd == "img":
+        idx = int(sys.argv[2])
+        title = sys.argv[3] if len(sys.argv) > 3 else ""
+        image_url = sys.argv[4] if len(sys.argv) > 4 else ""
+        caption = sys.argv[5] if len(sys.argv) > 5 else ""
+        s.img_slide(idx, title, image_url, caption)
+    elif cmd == "toc":
+        s.toc_slide(int(sys.argv[2]))
     else:
         print(f"Unknown command: {cmd}")
         print(__doc__)

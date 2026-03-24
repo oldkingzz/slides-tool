@@ -99,3 +99,21 @@ class SlidesHelper:
         else:
             print(f"Deleted slide [{result['index']}]")
         return result
+
+    def img_slide(self, index, title="", image_url="", caption=""):
+        """Set a slide to show an image with optional title and caption."""
+        result = _post({"command": "img", "index": index, "title": title, "image_url": image_url, "caption": caption})
+        if "error" in result:
+            print(f"Error: {result['error']}")
+        else:
+            print(f"Image set on slide [{result['index']}]")
+        return result
+
+    def toc_slide(self, index):
+        """Generate a Table of Contents with hyperlinks at given slide index."""
+        result = _post({"command": "toc", "index": index})
+        if "error" in result:
+            print(f"Error: {result['error']}")
+        else:
+            print(f"Generated TOC at slide [{result['index']}] with {result.get('sections', 0)} sections")
+        return result

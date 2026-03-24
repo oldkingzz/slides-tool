@@ -19,6 +19,10 @@ function doPost(e) {
       result = clearSlide_(pres, data.index);
     } else if (cmd === "delete") {
       result = deleteSlide_(pres, data.index);
+    } else if (cmd === "img") {
+      result = imgSlide_(pres, data.index, data.title || "", data.image_url || "", data.caption || "");
+    } else if (cmd === "toc") {
+      result = tocSlide_(pres, data.index);
     } else {
       result = {error: "Unknown command: " + cmd};
     }
@@ -99,6 +103,110 @@ function fillSlide_(slide, title, body) {
     var bodyBox = slide.insertTextBox(body, 50, yOffset, 620, 370);
     bodyBox.getText().getTextStyle().setFontSize(11);
   }
+}
+
+function imgSlide_(pres, index, title, imageUrl, caption) {
+  var slides = pres.getSlides();
+  if (index < 0 || index >= slides.length) {
+    return {error: "Index " + index + " out of range (total " + slides.length + ")"};
+  }
+  clearSlideElements_(slides[index]);
+
+  // Title at top
+  if (title) {
+    var titleBox = slides[index].insertTextBox(title, 50, 15, 620, 45);
+    titleBox.getText().getTextStyle().setFontSize(24).setBold(true);
+  }
+
+  // Image centered
+  var yOffset = title ? 65 : 15;
+  var imgHeight = caption ? 300 : 340;
+  try {
+    var image = slides[index].insertImage(imageUrl, 50, yOffset, 620, imgHeight);
+  } catch (err) {
+    return {error: "Failed to insert image: " + err.message};
+  }
+
+  // Caption at bottom
+  if (caption) {
+    var capBox = slides[index].insertTextBox(caption, 50, yOffset + imgHeight + 5, 620, 40);
+    capBox.getText().getTextStyle().setFontSize(11);
+  }
+
+  return {index: index, status: "image_set"};
+}
+
+function tocSlide_(pres, index) {
+  var slides = pres.getSlides();
+  if (index < 0 || index >= slides.length) {
+    return {error: "Index " + index + " out of range (total " + slides.length + ")"};
+  }
+
+  // Collect slide titles (first text element of each slide)
+  var entries = []; // {title, slideIndex, slide}
+  for (var i = 0; i < slides.length; i++) {
+    if (i === index) continue; // skip the TOC slide itself
+    var elems = slides[i].getPageElements();
+    var title = "";
+    for (var j = 0; j < elems.length; j++) {
+      if (elems[j].getPageElementType() === SlidesApp.PageElementType.SHAPE) {
+        var t = elems[j].asShape().getText().asString().trim();
+        if (t) { title = t; break; }
+      }
+    }
+    if (!title) title = "(Slide " + i + ")";
+    entries.push({title: title, slideIndex: i, slide: slides[i]});
+  }
+
+  // Group consecutive slides by common prefix (strip trailing "(N/M)" pattern)
+  function getGroupKey(title) {
+    return title.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
+  }
+
+  var sections = []; // {name, firstSlideIndex, firstSlide, count}
+  for (var k = 0; k < entries.length; k++) {
+    var key = getGroupKey(entries[k].title);
+    if (sections.length > 0 && sections[sections.length - 1].name === key) {
+      sections[sections.length - 1].count++;
+    } else {
+      sections.push({
+        name: key,
+        firstSlideIndex: entries[k].slideIndex,
+        firstSlide: entries[k].slide,
+        count: 1
+      });
+    }
+  }
+
+  // Clear and fill the TOC slide
+  clearSlideElements_(slides[index]);
+
+  var titleBox = slides[index].insertTextBox("Table of Contents", 50, 15, 620, 45);
+  titleBox.getText().getTextStyle().setFontSize(24).setBold(true);
+
+  // Build TOC entries with links
+  var yStart = 70;
+  var lineHeight = 28;
+  var tocEntries = [];
+
+  for (var s = 0; s < sections.length; s++) {
+    var label = sections[s].name;
+    if (sections[s].count > 1) {
+      label += " (" + sections[s].count + " slides)";
+    }
+    var entryText = (s + 1) + ". " + label;
+
+    var textBox = slides[index].insertTextBox(
+      entryText,
+      60, yStart + s * lineHeight,
+      600, lineHeight
+    );
+    var textRange = textBox.getText();
+    textRange.getTextStyle().setFontSize(13);
+    textRange.getTextStyle().setLinkSlide(sections[s].firstSlide);
+  }
+
+  return {index: index, status: "toc_generated", sections: sections.length};
 }
 
 // Test function — run manually to verify it works
