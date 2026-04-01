@@ -97,44 +97,74 @@ s.move_slide(3, 1)
 print(s.get_url())
 ```
 
-## How to Create Slides
+## Visual Slide Types (preferred over raw text)
 
-### For text content:
-Use layout-based slides. The Penn template handles all styling automatically.
+**Always prefer these over `add_slide` with body text.** Raw text on a slide is ugly.
 
+### Metric cards — for key numbers
+```bash
+python edit_slides.py metrics "Title" "20:tasks" "4,006:episodes" "2.62M:samples" --layout blank
+```
 ```python
-s.add_slide("Section Title", "• Point 1\n• Point 2\n• Point 3", layout="content_blue")
+s.metric_slide("Title", [
+    {"value": "20", "label": "tasks"},
+    {"value": "4,006", "label": "episodes"},
+    {"value": "2.62M", "label": "samples"},
+])
 ```
 
-### For diagrams/charts:
-Use `matplotlib` or `plotly` to render high-quality images, upload to an accessible URL,
-then use `img_slide()`.
-
+### Styled table — for structured comparisons
+```bash
+python edit_slides.py table "Title" "Col1,Col2,Col3" "r1c1,r1c2,r1c3" "r2c1,r2c2,r2c3"
+```
 ```python
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.bar(["A", "B", "C"], [3, 7, 5])
-fig.savefig("/tmp/chart.png", dpi=150, bbox_inches="tight")
-
-# Upload to Drive or use a public URL, then:
-s.img_slide(-1, "Results", image_url, "Bar chart of metrics")
+s.table_slide("Title", ["Col1", "Col2", "Col3"], [
+    ["r1c1", "r1c2", "r1c3"],
+    ["r2c1", "r2c2", "r2c3"],
+])
 ```
 
-### For section dividers:
+### Step cards — for plans/sequences
+```bash
+python edit_slides.py steps "Title" "Step 1 text" "Step 2 text" "Step 3 text"
+```
+```python
+s.steps_slide("Title", [
+    {"text": "Step 1 text"},
+    {"text": "Step 2 text"},
+    {"text": "Step 3 text"},
+])
+```
+
+### Image slide — for charts/diagrams
+```python
+s.img_slide(-1, "Title", "https://...", "Caption")
+```
+
+### Section divider
 ```python
 s.add_slide("Part 2: Experiments", "", layout="divider")
 ```
 
+### Preview — self-review after editing
+```bash
+python edit_slides.py preview          # all slides
+python edit_slides.py preview 2 3 4    # specific slides
+```
+```python
+s.preview([2, 3, 4])  # saves PNGs to /tmp/slide_preview/
+```
+
 ## Rules for AI Assistants
 
-1. **Use appropriate layouts** — content_blue for most slides, navy for emphasis, divider for sections.
-2. **NEVER truncate content.** Split across multiple slides if needed.
-3. Keep text concise — bullet points, not paragraphs.
+1. **NEVER use raw text slides.** Use `metric_slide`, `table_slide`, `steps_slide`, or `img_slide` instead. Only use `add_slide` with body text as absolute last resort.
+2. **Always `preview` after editing** — visually inspect the thumbnails before presenting to user.
+3. Keep text minimal — short labels, not sentences.
 4. Always `list` before editing to get current indices.
-5. Always `list` after editing to confirm the change.
-6. For diagrams, prefer matplotlib/plotly over Mermaid — better quality and no external service dependency.
-7. The `config.json` contains the presentation ID. It auto-updates when you create a new presentation.
+5. Use layout variety for visual rhythm (divider between sections, alternate blue/navy).
+6. For charts/diagrams, use matplotlib/plotly → save PNG → `img_slide`.
+7. The `config.json` contains the presentation ID. Auto-updates when you create a new presentation.
+8. Default `--layout blank` for visual slides (metrics/table/steps). Use template layouts (content_blue etc.) only for rare text-heavy slides.
 
 ## Setup on a New Device
 
