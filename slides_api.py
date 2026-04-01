@@ -49,10 +49,21 @@ LAYOUTS = {
     "blank": "p54",                    # Blank
 }
 
-# EMU constants (English Metric Units, 1 inch = 914400 EMU)
+# EMU constants (English Metric Units, 1 pt = 12700 EMU, 1 inch = 914400 EMU)
+PT = 12700
 EMU_INCH = 914400
 SLIDE_W = 12192000  # 13.333 inches (16:9)
 SLIDE_H = 6858000   # 7.5 inches
+MARGIN = 50 * PT    # 50 pt margins
+
+# Penn colors (RGB floats 0-1)
+PENN_BLUE = {"red": 0.004, "green": 0.122, "blue": 0.357}   # #011F5B
+PENN_RED = {"red": 0.6, "green": 0.0, "blue": 0.0}           # #990000
+ACCENT_BLUE = {"red": 0.243, "green": 0.459, "blue": 0.894}  # #3E75E4
+WHITE = {"red": 1.0, "green": 1.0, "blue": 1.0}
+LIGHT_GRAY = {"red": 0.961, "green": 0.965, "blue": 0.973}   # #F5F6F8
+MID_GRAY = {"red": 0.467, "green": 0.467, "blue": 0.467}     # #777777
+DARK_TEXT = {"red": 0.118, "green": 0.118, "blue": 0.157}     # #1E1E28
 
 # Credentials paths
 CREDENTIALS_PATH = Path.home() / "credentials.json"
@@ -455,6 +466,457 @@ class SlidesHelper:
 
         print(f"Image set on slide [{index}]")
         return {"index": index, "id": slide_id}
+
+    # ------------------------------------------------------------------
+    # Visual composition methods
+    # ------------------------------------------------------------------
+
+    def metric_slide(self, title: str, metrics: list[dict],
+                     layout: str = "blank") -> dict:
+        """Create a slide with metric cards.
+
+        Args:
+            title: slide title
+            metrics: list of {"value": "4,006", "label": "episodes"} dicts (max 4)
+            layout: base layout to use
+        Returns:
+            {"index": N, "id": slide_id}
+        """
+        result = self.add_slide("", "", layout)
+        slide_id = result["id"]
+        index = result["index"]
+
+        n = len(metrics)
+        card_gap = 30 * PT
+        total_w = SLIDE_W - 2 * MARGIN
+        card_w = (total_w - (n - 1) * card_gap) // n
+        card_h = 180 * PT
+        card_y = SLIDE_H // 2 - card_h // 2 + 30 * PT  # slightly below center
+
+        requests = []
+
+        # Title at top
+        if title:
+            title_id = _uid()
+            requests.extend(self._make_text_box(
+                title_id, slide_id,
+                x=MARGIN, y=35 * PT,
+                w=total_w, h=50 * PT,
+                text=title,
+                font_size=36, bold=True, color=PENN_BLUE,
+            ))
+
+        # Metric cards
+        for i, m in enumerate(metrics):
+            card_x = MARGIN + i * (card_w + card_gap)
+
+            # Card background (rounded rectangle)
+            card_id = _uid()
+            requests.append({
+                "createShape": {
+                    "objectId": card_id,
+                    "shapeType": "ROUND_RECTANGLE",
+                    "elementProperties": {
+                        "pageObjectId": slide_id,
+                        "size": {
+                            "width": {"magnitude": card_w, "unit": "EMU"},
+                            "height": {"magnitude": card_h, "unit": "EMU"},
+                        },
+                        "transform": {
+                            "scaleX": 1, "scaleY": 1,
+                            "translateX": card_x, "translateY": card_y,
+                            "unit": "EMU",
+                        },
+                    },
+                }
+            })
+            # Style the card
+            card_color = m.get("color", LIGHT_GRAY)
+            requests.append({
+                "updateShapeProperties": {
+                    "objectId": card_id,
+                    "fields": "shapeBackgroundFill.solidFill.color,outline.propertyState",
+                    "shapeProperties": {
+                        "shapeBackgroundFill": {
+                            "solidFill": {"color": {"rgbColor": card_color}}
+                        },
+                        "outline": {"propertyState": "NOT_RENDERED"},
+                    },
+                }
+            })
+
+            # Accent bar at top of card
+            bar_id = _uid()
+            bar_color = m.get("accent", ACCENT_BLUE)
+            requests.append({
+                "createShape": {
+                    "objectId": bar_id,
+                    "shapeType": "RECTANGLE",
+                    "elementProperties": {
+                        "pageObjectId": slide_id,
+                        "size": {
+                            "width": {"magnitude": card_w, "unit": "EMU"},
+                            "height": {"magnitude": 5 * PT, "unit": "EMU"},
+                        },
+                        "transform": {
+                            "scaleX": 1, "scaleY": 1,
+                            "translateX": card_x, "translateY": card_y,
+                            "unit": "EMU",
+                        },
+                    },
+                }
+            })
+            requests.append({
+                "updateShapeProperties": {
+                    "objectId": bar_id,
+                    "fields": "shapeBackgroundFill.solidFill.color,outline.propertyState",
+                    "shapeProperties": {
+                        "shapeBackgroundFill": {
+                            "solidFill": {"color": {"rgbColor": bar_color}}
+                        },
+                        "outline": {"propertyState": "NOT_RENDERED"},
+                    },
+                }
+            })
+
+            # Big number
+            val_id = _uid()
+            text_color = WHITE if m.get("dark") else PENN_BLUE
+            requests.extend(self._make_text_box(
+                val_id, slide_id,
+                x=card_x, y=card_y + 30 * PT,
+                w=card_w, h=70 * PT,
+                text=m["value"],
+                font_size=48, bold=True, color=text_color,
+                alignment="CENTER",
+            ))
+
+            # Label below number
+            lbl_id = _uid()
+            lbl_color = MID_GRAY if not m.get("dark") else {"red": 0.75, "green": 0.78, "blue": 0.82}
+            requests.extend(self._make_text_box(
+                lbl_id, slide_id,
+                x=card_x, y=card_y + 105 * PT,
+                w=card_w, h=40 * PT,
+                text=m["label"],
+                font_size=16, bold=False, color=lbl_color,
+                alignment="CENTER",
+            ))
+
+        self._slides.presentations().batchUpdate(
+            presentationId=self._pres_id,
+            body={"requests": requests},
+        ).execute()
+
+        print(f"Metric slide [{index}]: {n} cards")
+        return {"index": index, "id": slide_id}
+
+    def steps_slide(self, title: str, steps: list[dict],
+                    layout: str = "blank") -> dict:
+        """Create a slide with numbered step cards.
+
+        Args:
+            title: slide title
+            steps: list of {"number": "1", "text": "Description"} dicts
+            layout: base layout
+        """
+        result = self.add_slide("", "", layout)
+        slide_id = result["id"]
+        index = result["index"]
+
+        n = len(steps)
+        card_gap = 24 * PT
+        total_w = SLIDE_W - 2 * MARGIN
+        card_w = (total_w - (n - 1) * card_gap) // n
+        card_h = 200 * PT
+        card_y = SLIDE_H // 2 - card_h // 2 + 30 * PT
+
+        requests = []
+
+        if title:
+            title_id = _uid()
+            requests.extend(self._make_text_box(
+                title_id, slide_id,
+                x=MARGIN, y=35 * PT,
+                w=total_w, h=50 * PT,
+                text=title,
+                font_size=36, bold=True, color=PENN_BLUE,
+            ))
+
+        for i, step in enumerate(steps):
+            card_x = MARGIN + i * (card_w + card_gap)
+
+            # Card bg
+            card_id = _uid()
+            requests.append({
+                "createShape": {
+                    "objectId": card_id,
+                    "shapeType": "ROUND_RECTANGLE",
+                    "elementProperties": {
+                        "pageObjectId": slide_id,
+                        "size": {
+                            "width": {"magnitude": card_w, "unit": "EMU"},
+                            "height": {"magnitude": card_h, "unit": "EMU"},
+                        },
+                        "transform": {
+                            "scaleX": 1, "scaleY": 1,
+                            "translateX": card_x, "translateY": card_y,
+                            "unit": "EMU",
+                        },
+                    },
+                }
+            })
+            requests.append({
+                "updateShapeProperties": {
+                    "objectId": card_id,
+                    "fields": "shapeBackgroundFill.solidFill.color,outline.propertyState",
+                    "shapeProperties": {
+                        "shapeBackgroundFill": {
+                            "solidFill": {"color": {"rgbColor": LIGHT_GRAY}}
+                        },
+                        "outline": {"propertyState": "NOT_RENDERED"},
+                    },
+                }
+            })
+
+            # Step number (large, accent colored)
+            num_id = _uid()
+            requests.extend(self._make_text_box(
+                num_id, slide_id,
+                x=card_x, y=card_y + 20 * PT,
+                w=card_w, h=60 * PT,
+                text=step.get("number", str(i + 1)),
+                font_size=40, bold=True, color=ACCENT_BLUE,
+                alignment="CENTER",
+            ))
+
+            # Step text
+            txt_id = _uid()
+            requests.extend(self._make_text_box(
+                txt_id, slide_id,
+                x=card_x + 15 * PT, y=card_y + 90 * PT,
+                w=card_w - 30 * PT, h=90 * PT,
+                text=step["text"],
+                font_size=14, bold=False, color=DARK_TEXT,
+                alignment="CENTER",
+            ))
+
+        self._slides.presentations().batchUpdate(
+            presentationId=self._pres_id,
+            body={"requests": requests},
+        ).execute()
+
+        print(f"Steps slide [{index}]: {n} steps")
+        return {"index": index, "id": slide_id}
+
+    def table_slide(self, title: str, headers: list[str],
+                    rows: list[list[str]], layout: str = "blank") -> dict:
+        """Create a slide with a styled table.
+
+        Args:
+            title: slide title
+            headers: column header strings
+            rows: list of row data (each row is a list of strings)
+            layout: base layout
+        """
+        result = self.add_slide("", "", layout)
+        slide_id = result["id"]
+        index = result["index"]
+
+        requests = []
+
+        if title:
+            title_id = _uid()
+            total_w = SLIDE_W - 2 * MARGIN
+            requests.extend(self._make_text_box(
+                title_id, slide_id,
+                x=MARGIN, y=35 * PT,
+                w=total_w, h=50 * PT,
+                text=title,
+                font_size=36, bold=True, color=PENN_BLUE,
+            ))
+
+        # Create table
+        table_id = _uid()
+        n_rows = len(rows) + 1  # +1 for header
+        n_cols = len(headers)
+        table_w = SLIDE_W - 2 * MARGIN
+        table_h = min(n_rows * 50 * PT, SLIDE_H - 150 * PT)
+
+        requests.append({
+            "createTable": {
+                "objectId": table_id,
+                "elementProperties": {
+                    "pageObjectId": slide_id,
+                    "size": {
+                        "width": {"magnitude": table_w, "unit": "EMU"},
+                        "height": {"magnitude": table_h, "unit": "EMU"},
+                    },
+                    "transform": {
+                        "scaleX": 1, "scaleY": 1,
+                        "translateX": MARGIN,
+                        "translateY": 110 * PT,
+                        "unit": "EMU",
+                    },
+                },
+                "rows": n_rows,
+                "columns": n_cols,
+            }
+        })
+
+        # Must batch-execute table creation first, then style it
+        self._slides.presentations().batchUpdate(
+            presentationId=self._pres_id,
+            body={"requests": requests},
+        ).execute()
+
+        # Now fill and style the table
+        requests2 = []
+
+        # Header row - fill cells with Penn Blue
+        for c, header in enumerate(headers):
+            requests2.append({
+                "insertText": {
+                    "objectId": table_id,
+                    "cellLocation": {"rowIndex": 0, "columnIndex": c},
+                    "text": header,
+                }
+            })
+            requests2.append({
+                "updateTextStyle": {
+                    "objectId": table_id,
+                    "cellLocation": {"rowIndex": 0, "columnIndex": c},
+                    "style": {
+                        "bold": True,
+                        "fontSize": {"magnitude": 14, "unit": "PT"},
+                        "foregroundColor": {"opaqueColor": {"rgbColor": WHITE}},
+                    },
+                    "textRange": {"type": "ALL"},
+                    "fields": "bold,fontSize,foregroundColor",
+                }
+            })
+            requests2.append({
+                "updateTableCellProperties": {
+                    "objectId": table_id,
+                    "tableRange": {
+                        "location": {"rowIndex": 0, "columnIndex": c},
+                        "rowSpan": 1, "columnSpan": 1,
+                    },
+                    "tableCellProperties": {
+                        "tableCellBackgroundFill": {
+                            "solidFill": {"color": {"rgbColor": PENN_BLUE}}
+                        }
+                    },
+                    "fields": "tableCellBackgroundFill.solidFill.color",
+                }
+            })
+
+        # Data rows
+        for r, row_data in enumerate(rows):
+            for c, cell in enumerate(row_data):
+                requests2.append({
+                    "insertText": {
+                        "objectId": table_id,
+                        "cellLocation": {"rowIndex": r + 1, "columnIndex": c},
+                        "text": cell,
+                    }
+                })
+                requests2.append({
+                    "updateTextStyle": {
+                        "objectId": table_id,
+                        "cellLocation": {"rowIndex": r + 1, "columnIndex": c},
+                        "style": {
+                            "fontSize": {"magnitude": 12, "unit": "PT"},
+                            "foregroundColor": {"opaqueColor": {"rgbColor": DARK_TEXT}},
+                        },
+                        "textRange": {"type": "ALL"},
+                        "fields": "fontSize,foregroundColor",
+                    }
+                })
+                # Alternate row colors
+                if r % 2 == 1:
+                    requests2.append({
+                        "updateTableCellProperties": {
+                            "objectId": table_id,
+                            "tableRange": {
+                                "location": {"rowIndex": r + 1, "columnIndex": c},
+                                "rowSpan": 1, "columnSpan": 1,
+                            },
+                            "tableCellProperties": {
+                                "tableCellBackgroundFill": {
+                                    "solidFill": {"color": {"rgbColor": LIGHT_GRAY}}
+                                }
+                            },
+                            "fields": "tableCellBackgroundFill.solidFill.color",
+                        }
+                    })
+
+        if requests2:
+            self._slides.presentations().batchUpdate(
+                presentationId=self._pres_id,
+                body={"requests": requests2},
+            ).execute()
+
+        print(f"Table slide [{index}]: {n_rows}x{n_cols}")
+        return {"index": index, "id": slide_id}
+
+    # ------------------------------------------------------------------
+    # Shape/text primitives
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_text_box(obj_id, page_id, x, y, w, h,
+                       text, font_size=14, bold=False,
+                       color=None, alignment="START"):
+        """Return a list of API requests to create a styled text box."""
+        color = color or DARK_TEXT
+        requests = [
+            {
+                "createShape": {
+                    "objectId": obj_id,
+                    "shapeType": "TEXT_BOX",
+                    "elementProperties": {
+                        "pageObjectId": page_id,
+                        "size": {
+                            "width": {"magnitude": w, "unit": "EMU"},
+                            "height": {"magnitude": h, "unit": "EMU"},
+                        },
+                        "transform": {
+                            "scaleX": 1, "scaleY": 1,
+                            "translateX": x, "translateY": y,
+                            "unit": "EMU",
+                        },
+                    },
+                }
+            },
+            {
+                "insertText": {
+                    "objectId": obj_id,
+                    "text": text,
+                }
+            },
+            {
+                "updateTextStyle": {
+                    "objectId": obj_id,
+                    "style": {
+                        "bold": bold,
+                        "fontSize": {"magnitude": font_size, "unit": "PT"},
+                        "foregroundColor": {"opaqueColor": {"rgbColor": color}},
+                    },
+                    "textRange": {"type": "ALL"},
+                    "fields": "bold,fontSize,foregroundColor",
+                }
+            },
+            {
+                "updateParagraphStyle": {
+                    "objectId": obj_id,
+                    "style": {"alignment": alignment},
+                    "textRange": {"type": "ALL"},
+                    "fields": "alignment",
+                }
+            },
+        ]
+        return requests
 
     # ------------------------------------------------------------------
     # Preview / thumbnail

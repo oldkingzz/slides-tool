@@ -100,6 +100,28 @@ def main():
         caption = _unescape(args[3]) if len(args) > 3 else ""
         s.img_slide(idx, title, image_url, caption, layout)
 
+    elif cmd == "metrics":
+        # Usage: python edit_slides.py metrics "Title" "value1:label1" "value2:label2" ...
+        title = _unescape(args[0]) if args else ""
+        metrics = []
+        for a in args[1:]:
+            parts = a.split(":", 1)
+            metrics.append({"value": parts[0], "label": parts[1] if len(parts) > 1 else ""})
+        s.metric_slide(title, metrics, layout)
+
+    elif cmd == "steps":
+        # Usage: python edit_slides.py steps "Title" "Step 1 text" "Step 2 text" ...
+        title = _unescape(args[0]) if args else ""
+        steps = [{"text": _unescape(a)} for a in args[1:]]
+        s.steps_slide(title, steps, layout)
+
+    elif cmd == "table":
+        # Usage: python edit_slides.py table "Title" "H1,H2,H3" "r1c1,r1c2,r1c3" ...
+        title = _unescape(args[0]) if args else ""
+        headers = args[1].split(",") if len(args) > 1 else []
+        rows = [a.split(",") for a in args[2:]]
+        s.table_slide(title, headers, rows, layout)
+
     elif cmd == "preview":
         indices = [int(a) for a in args] if args else None
         s.preview(indices)
