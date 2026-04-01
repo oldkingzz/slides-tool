@@ -11,6 +11,7 @@ Template: Penn Engineering 2025 template (copied per presentation).
 
 import json
 import os
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -454,6 +455,59 @@ class SlidesHelper:
 
         print(f"Image set on slide [{index}]")
         return {"index": index, "id": slide_id}
+
+    # ------------------------------------------------------------------
+    # Preview / thumbnail
+    # ------------------------------------------------------------------
+
+    def preview(self, indices=None, out_dir="/tmp/slide_preview"):
+        """Download slide thumbnails as PNG for visual review.
+
+        Args:
+            indices: list of slide indices to preview, or None for all.
+            out_dir: directory to save PNGs.
+        Returns:
+            list of saved file paths.
+        """
+        out_path = Path(out_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        pres = self._slides.presentations().get(
+            presentationId=self._pres_id
+        ).execute()
+        slides = pres.get("slides", [])
+
+        if indices is None:
+            indices = list(range(len(slides)))
+
+        saved = []
+        for i in indices:
+            if i < 0 or i >= len(slides):
+                print(f"  Skipping index {i} (out of range)")
+                continue
+
+            page_id = slides[i]["objectId"]
+            result = self._slides.presentations().pages().getThumbnail(
+                presentationId=self._pres_id,
+                pageObjectId=page_id,
+                thumbnailProperties_thumbnailSize="LARGE",
+                thumbnailProperties_mimeType="PNG",
+            ).execute()
+
+            url = result["contentUrl"]
+            token = self._creds.token
+            req = urllib.request.Request(
+                url, headers={"Authorization": f"Bearer {token}"}
+            )
+            with urllib.request.urlopen(req) as resp:
+                data = resp.read()
+
+            fpath = out_path / f"slide_{i:03d}.png"
+            fpath.write_bytes(data)
+            saved.append(str(fpath))
+            print(f"  [{i}] → {fpath}")
+
+        return saved
 
     # ------------------------------------------------------------------
     # Internal helpers

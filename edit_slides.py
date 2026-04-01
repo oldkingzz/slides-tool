@@ -13,6 +13,8 @@ Usage:
     python edit_slides.py move <from> <to>
     python edit_slides.py img <index> "Title" "<image_url>" "Caption"
     python edit_slides.py img -1 "Title" "<image_url>" "Caption"   # append
+    python edit_slides.py preview                                  # all slides
+    python edit_slides.py preview 0 2 4                            # specific slides
 
 Available layouts:
     title, title_double, divider, divider_gray,
@@ -21,6 +23,11 @@ Available layouts:
 """
 
 import sys
+
+
+def _unescape(s: str) -> str:
+    """Convert literal \\n to real newlines in CLI args."""
+    return s.replace("\\n", "\n")
 
 
 def main():
@@ -64,20 +71,20 @@ def main():
         print(s.get_url())
 
     elif cmd == "add":
-        title = args[0] if len(args) > 0 else ""
-        body = args[1] if len(args) > 1 else ""
+        title = _unescape(args[0]) if len(args) > 0 else ""
+        body = _unescape(args[1]) if len(args) > 1 else ""
         s.add_slide(title, body, layout)
 
     elif cmd == "insert":
         idx = int(args[0])
-        title = args[1] if len(args) > 1 else ""
-        body = args[2] if len(args) > 2 else ""
+        title = _unescape(args[1]) if len(args) > 1 else ""
+        body = _unescape(args[2]) if len(args) > 2 else ""
         s.insert_slide(idx, title, body, layout)
 
     elif cmd == "set":
         idx = int(args[0])
-        title = args[1] if len(args) > 1 else ""
-        body = args[2] if len(args) > 2 else ""
+        title = _unescape(args[1]) if len(args) > 1 else ""
+        body = _unescape(args[2]) if len(args) > 2 else ""
         s.set_slide(idx, title, body, layout if "--layout" in sys.argv else None)
 
     elif cmd == "delete":
@@ -88,10 +95,14 @@ def main():
 
     elif cmd == "img":
         idx = int(args[0])
-        title = args[1] if len(args) > 1 else ""
+        title = _unescape(args[1]) if len(args) > 1 else ""
         image_url = args[2] if len(args) > 2 else ""
-        caption = args[3] if len(args) > 3 else ""
+        caption = _unescape(args[3]) if len(args) > 3 else ""
         s.img_slide(idx, title, image_url, caption, layout)
+
+    elif cmd == "preview":
+        indices = [int(a) for a in args] if args else None
+        s.preview(indices)
 
     else:
         print(f"Unknown command: {cmd}")
