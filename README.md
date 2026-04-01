@@ -1,69 +1,69 @@
 # slides-tool
 
-A minimal CLI that edits Google Slides via the API — designed for AI assistants (like Claude Code) to use Google Slides as a living notebook.
-
-No OAuth credentials or Google Cloud Console needed. It works through a small Apps Script deployed inside the presentation itself.
+A CLI that creates and edits Google Slides using the Google Slides API directly — with Penn Engineering template for professional styling. Designed for AI assistants (like Claude Code) to generate polished presentations automatically.
 
 ## How it works
 
 ```
 You / AI assistant
-    ↓  (uv run edit_slides.py add "Title" "Notes here")
-Python CLI
-    ↓  (HTTP POST with JSON)
-Google Apps Script (deployed inside your Slides)
-    ↓  (SlidesApp API)
-Your Google Slides presentation
+    ↓  (python edit_slides.py add "Title" "Body" --layout navy)
+Python CLI + Google Slides API
+    ↓  (OAuth2 authenticated API calls)
+Google Slides presentation (Penn Engineering template)
 ```
 
 ## Quick start
 
-### 1. Clone and install
+### 1. Install dependencies
 
 ```bash
-git clone https://github.com/oldkingzz/slides-tool.git
-cd slides-tool
-bash setup.sh
+pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib matplotlib
 ```
 
-### 2. Deploy the Apps Script
+### 2. Set up Google Cloud OAuth
 
-- Open your Google Slides presentation
-- Go to **Extensions → Apps Script**
-- Delete the default code, paste the contents of `appscript.js`
-- Click **Deploy → New Deployment**
-- Select **Web app**, set:
-  - Execute as: **Me**
-  - Who has access: **Anyone**
-- Click **Deploy**, authorize when prompted
-- Copy the web app URL
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a project, enable **Google Slides API** and **Google Drive API**
+3. Create OAuth 2.0 credentials (Desktop app)
+4. Download the JSON and save as `~/credentials.json`
+5. Add your Gmail as a test user in OAuth consent screen
 
-### 3. Configure
+### 3. First run (authorize)
 
-Create `config.json` in this folder:
-
-```json
-{
-    "webapp_url": "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
-}
+```bash
+python edit_slides.py new "My Presentation"
 ```
+
+This will print a URL — open it in your browser, authorize, paste the code back.
+Token saves to `~/token.json` and auto-refreshes after that.
 
 ### 4. Use it
 
 ```bash
-uv run edit_slides.py list                        # list all slides
-uv run edit_slides.py add "Title" "Body text"     # append a slide
-uv run edit_slides.py set 0 "Title" "Body text"   # replace slide 0
-uv run edit_slides.py clear 2                     # clear slide 2
-uv run edit_slides.py delete 3                    # delete slide 3
+python edit_slides.py list                              # list all slides
+python edit_slides.py add "Title" "Body text"           # append (blue bar layout)
+python edit_slides.py add "Title" "Body" --layout navy  # append with navy layout
+python edit_slides.py set 2 "Title" "Body"              # update slide 2
+python edit_slides.py delete 3                          # delete slide 3
+python edit_slides.py img -1 "Title" "url" "Caption"    # append image slide
+python edit_slides.py url                               # get presentation URL
 ```
 
-## Why?
+## Available layouts
 
-I wanted a way for AI coding assistants to push notes directly into Google Slides during a working session — no copy-paste, no switching tabs. This is the simplest setup I could find: zero external dependencies, no API keys, works with school/work Google accounts that can't access Cloud Console.
+| Layout | Description |
+|--------|-------------|
+| `content_blue` | Blue bar header (default) |
+| `content_red` | Red bar header |
+| `content_gray` | Gray bar header |
+| `navy` | Dark navy background |
+| `title` | Presentation title |
+| `divider` | Section divider with Penn logo |
+| `two_column` | Side-by-side content |
+| `blank` | Blank for custom images |
 
 ## Requirements
 
 - Python 3.10+
-- [uv](https://docs.astral.sh/uv/) (the setup script installs it if missing)
-- A Google account that can edit the target Slides and use Apps Script
+- `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`
+- A personal Gmail account with Google Cloud Console access
