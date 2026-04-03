@@ -482,7 +482,7 @@ class SlidesHelper:
         Returns:
             {"index": N, "id": slide_id}
         """
-        result = self.add_slide("", "", layout)
+        result = self.add_slide(title or "", "", layout)
         slide_id = result["id"]
         index = result["index"]
 
@@ -620,7 +620,7 @@ class SlidesHelper:
             steps: list of {"number": "1", "text": "Description"} dicts
             layout: base layout
         """
-        result = self.add_slide("", "", layout)
+        result = self.add_slide(title or "", "", layout)
         slide_id = result["id"]
         index = result["index"]
 
@@ -632,16 +632,6 @@ class SlidesHelper:
         card_y = SLIDE_H // 2 - card_h // 2 + 30 * PT
 
         requests = []
-
-        if title:
-            title_id = _uid()
-            requests.extend(self._make_text_box(
-                title_id, slide_id,
-                x=MARGIN, y=35 * PT,
-                w=total_w, h=50 * PT,
-                text=title,
-                font_size=36, bold=True, color=PENN_BLUE,
-            ))
 
         for i, step in enumerate(steps):
             card_x = MARGIN + i * (card_w + card_gap)
@@ -719,7 +709,7 @@ class SlidesHelper:
             rows: list of row data (each row is a list of strings)
             layout: base layout
         """
-        result = self.add_slide("", "", layout)
+        result = self.add_slide(title or "", "", layout)
         slide_id = result["id"]
         index = result["index"]
 
