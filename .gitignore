@@ -11,3 +11,10 @@ config.json
 # OS
 .DS_Store
 Thumbs.db
+
+# OAuth credentials (NEVER commit)
+token.json
+credentials.json
+*.key
+*.pem
+*.secret
