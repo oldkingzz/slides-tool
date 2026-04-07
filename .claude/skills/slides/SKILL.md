@@ -70,6 +70,48 @@ s.steps_slide("Title", [{"text": "Step 1\nDetails"}, {"text": "Step 2\nMore"}], 
 s.add_mermaid("slide_object_id", "graph LR; A-->B", x_pt, y_pt, w_pt, h_pt)
 ```
 
+## User preferences
+- **Prefer charts/figures over tables.** User strongly prefers matplotlib plots
+  (loss curves, bar charts comparing experiments, etc.) over dense tables.
+  Use tables only for config/cost summaries where data is non-numeric or sparse.
+- For training/eval results, ALWAYS use plots first.
+
+## Adding a matplotlib chart as an image slide
+
+Google Slides API needs a public URL, not a local file. Pipeline:
+
+1. Generate PNG with matplotlib (use Penn colors: blue #011F5B, red #990000):
+   ```python
+   import matplotlib
+   matplotlib.use('Agg')
+   import matplotlib.pyplot as plt
+   # ... build figure ...
+   plt.savefig('/tmp/myplot.png', dpi=120, bbox_inches='tight')
+   ```
+
+2. Upload to catbox to get a public URL:
+   ```bash
+   curl --connect-timeout 10 -F "reqtype=fileupload" \
+        -F "fileToUpload=@/tmp/myplot.png" \
+        https://catbox.moe/user/api.php
+   # returns https://files.catbox.moe/XXXXXX.png
+   ```
+
+3. Insert as image slide:
+   ```python
+   s.img_slide(index=-1, title="Title", image_url="https://files.catbox.moe/XXXXXX.png",
+               caption="caption text", layout="blank")
+   ```
+
+## Pulling training data from wandb (for plots)
+```python
+import wandb
+api = wandb.Api()
+run = api.run('Upenn-San/B1K/<RUN_ID>')
+hist = run.history(keys=['_step', 'total_loss', 'predicate_accuracy'], samples=200)
+# hist is a pandas DataFrame
+```
+
 ## Important
 - Always preview after changes to verify
 - Penn Engineering template with Penn colors (blue #011F5B, red #990000)
